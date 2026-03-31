@@ -9,14 +9,20 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-TWSE_URL = "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX"
+# 新版 RWD API（優先嘗試）
+TWSE_URL_RWD = "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX"
+# 舊版 API（備援）
+TWSE_URL_OLD = "https://www.twse.com.tw/exchangeReport/MI_INDEX"
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
+        "Chrome/124.0.0.0 Safari/537.36"
     ),
     "Referer": "https://www.twse.com.tw/zh/trading/historical/mi-index.html",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
 }
 
 # 漲停判斷門檻（%）— 上市股票法定漲停為 +10%，保守用 9.5 避免浮點數誤差
@@ -60,21 +66,28 @@ def fetch_limit_up_stocks(trade_date: str) -> list[dict]:
         "response": "json",
     }
 
-    for attempt in range(3):
-        try:
-            resp = requests.get(TWSE_URL, params=params, headers=HEADERS, timeout=20)
-            resp.raise_for_status()
+    payload = None
+    for url in [TWSE_URL_RWD, TWSE_URL_OLD]:
+        for attempt in range(3):
+            try:
+                time.sleep(1)  # 避免被 TWSE 限流
+                resp = requests.get(url, params=params, headers=HEADERS, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+                if data.get("stat") == "OK":
+                    payload = data
+                    logger.info("成功從 %s 取得資料", url)
+                    break
+                else:
+                    logger.info("URL %s 回傳：%s", url, data.get("stat"))
+            except requests.RequestException as e:
+                logger.warning("第 %d 次請求失敗（%s）：%s", attempt + 1, url, e)
+                time.sleep(3)
+        if payload:
             break
-        except requests.RequestException as e:
-            logger.warning("第 %d 次請求失敗：%s", attempt + 1, e)
-            if attempt == 2:
-                raise
-            time.sleep(3)
 
-    payload = resp.json()
-
-    if payload.get("stat") != "OK":
-        logger.info("TWSE 回傳非 OK 狀態（可能為非交易日）：%s", payload.get("stat"))
+    if not payload:
+        logger.info("TWSE 兩個端點皆無資料（可能為非交易日）")
         return []
 
     # 找出主要資料表（type=ALLBUT0999 時在 'data9' 或 'data'）

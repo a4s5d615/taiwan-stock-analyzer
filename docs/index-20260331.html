@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台股漲停分析 2026/03/31</title>
+  <style>
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #1c2128;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --accent:    #58a6ff;
+      --green:     #3fb950;
+      --red:       #f85149;
+      --tag-bg:    #1f2937;
+      --tag-text:  #93c5fd;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo span { color: var(--accent); }
+
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .date-nav button {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 5px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background .15s, border-color .15s;
+    }
+    .date-nav button:hover { background: var(--border); }
+    .date-nav button:disabled { opacity: .4; cursor: default; }
+    .date-display {
+      font-weight: 600;
+      font-size: 15px;
+      min-width: 120px;
+      text-align: center;
+    }
+
+    .search-wrap {
+      position: relative;
+    }
+    .search-wrap input {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px 5px 32px;
+      font-size: 13px;
+      width: 180px;
+      outline: none;
+      transition: border-color .15s, width .2s;
+    }
+    .search-wrap input:focus { border-color: var(--accent); width: 220px; }
+    .search-wrap::before {
+      content: "🔍";
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    /* ── Main Layout ── */
+    .container { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
+
+    /* ── Stats Bar ── */
+    .stats-bar {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .stat-item { display: flex; flex-direction: column; gap: 2px; }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { font-size: 22px; font-weight: 700; color: var(--red); }
+    .stat-value.neutral { color: var(--accent); }
+
+    .summary-text {
+      flex: 1;
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      min-width: 200px;
+    }
+
+    /* ── Sector ── */
+    .sector {
+      margin-bottom: 32px;
+      animation: fadeIn .3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+
+    .sector-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .sector-title {
+      font-size: 17px;
+      font-weight: 700;
+      border-left: 3px solid var(--accent);
+      padding-left: 10px;
+    }
+    .sector-count {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .sector-theme {
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .sector-desc {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 14px;
+      line-height: 1.7;
+      padding-left: 13px;
+      border-left: 3px solid var(--border);
+    }
+
+    /* ── Stock Grid ── */
+    .stocks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+      gap: 10px;
+    }
+
+    .stock-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color .15s, transform .1s, background .15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .stock-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--red);
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .stock-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+      background: var(--surface2);
+    }
+    .stock-card:hover::before { opacity: 1; }
+    .stock-card.hidden { display: none; }
+
+    .stock-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .stock-name { font-weight: 600; font-size: 14px; line-height: 1.3; }
+    .stock-code {
+      color: var(--muted);
+      font-size: 11px;
+      background: var(--bg);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .stock-price { font-size: 22px; font-weight: 700; color: var(--red); letter-spacing: .5px; }
+    .stock-change { font-size: 12px; color: var(--red); margin-top: 2px; }
+    .stock-volume { color: var(--muted); font-size: 11px; margin-top: 6px; }
+
+    /* ── Uncategorized ── */
+    .uncategorized-section { margin-top: 16px; }
+    .uncategorized-title {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .uncategorized-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .uncategorized-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 40px;
+      padding: 20px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* ── No Results ── */
+    .no-results {
+      display: none;
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .no-results.visible { display: block; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      header { padding: 10px 14px; }
+      .container { padding: 16px 12px; }
+      .stocks-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); }
+      .search-wrap input { width: 140px; }
+      .search-wrap input:focus { width: 160px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">台股漲停 <span>2026/03/31</span></a>
+
+  <div class="date-nav">
+    <button id="btn-prev" onclick="goToDate('')" disabled>← 前一天</button>
+    <span class="date-display">2026/03/31</span>
+    <button id="btn-next" onclick="goToDate('')" disabled>後一天 →</button>
+  </div>
+
+  <div class="search-wrap">
+    <input type="text" id="search-input" placeholder="搜尋股票代號 / 名稱" oninput="filterStocks(this.value)">
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-label">今日漲停</span>
+      <span class="stat-value">8 檔</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">產業分類</span>
+      <span class="stat-value neutral">3 類</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">更新時間</span>
+      <span class="stat-value neutral" style="font-size:14px; padding-top:6px;">11:57</span>
+    </div>
+    <div class="summary-text">AI 算力需求持續爆發，台積電領銜 CoWoS 先進封裝概念股全面漲停，半導體供應鏈普遍受惠，市場氣氛樂觀。</div>
+  </div>
+
+  <!-- Sectors (injected by Python) -->
+  
+  <div class="sector">
+    <div class="sector-header">
+      <div class="sector-title">AI 晶片供應鏈</div>
+      <span class="sector-count">3 檔</span>
+      <span class="sector-theme">CoWoS / HBM</span>
+    </div>
+    <div class="sector-desc">受惠於輝達 GB300 大規模出貨，台積電先進封裝產能滿載，聯發科 AI 晶片出貨量創新高，帶動整體 AI 晶片供應鏈全面上攻。</div>
+    <div class="stocks-grid">
+        <div class="stock-card" data-search="2330 台積電">
+          <div class="stock-header">
+            <div class="stock-name">台積電</div>
+            <span class="stock-code">2330</span>
+          </div>
+          <div class="stock-price">1,050</div>
+          <div class="stock-change">+95.00 (+9.95%)</div>
+          <div class="stock-volume">成交 45678 千股</div>
+        </div>
+        <div class="stock-card" data-search="2454 聯發科">
+          <div class="stock-header">
+            <div class="stock-name">聯發科</div>
+            <span class="stock-code">2454</span>
+          </div>
+          <div class="stock-price">1,200</div>
+          <div class="stock-change">+109.00 (+9.99%)</div>
+          <div class="stock-volume">成交 12345 千股</div>
+        </div>
+        <div class="stock-card" data-search="3034 聯詠">
+          <div class="stock-header">
+            <div class="stock-name">聯詠</div>
+            <span class="stock-code">3034</span>
+          </div>
+          <div class="stock-price">580</div>
+          <div class="stock-change">+52.00 (+9.84%)</div>
+          <div class="stock-volume">成交 8901 千股</div>
+        </div>
+    </div>
+  </div>
+
+  <div class="sector">
+    <div class="sector-header">
+      <div class="sector-title">AI 伺服器 ODM</div>
+      <span class="sector-count">1 檔</span>
+      <span class="sector-theme">GB300 / 散熱</span>
+    </div>
+    <div class="sector-desc">廣達、英業達等 ODM 廠受惠輝達新一代伺服器訂單持續增加，下半年出貨能見度明朗，法人大幅調升目標價。</div>
+    <div class="stocks-grid">
+        <div class="stock-card" data-search="2382 廣達">
+          <div class="stock-header">
+            <div class="stock-name">廣達</div>
+            <span class="stock-code">2382</span>
+          </div>
+          <div class="stock-price">310</div>
+          <div class="stock-change">+28.00 (+9.93%)</div>
+          <div class="stock-volume">成交 23456 千股</div>
+        </div>
+    </div>
+  </div>
+
+  <div class="sector">
+    <div class="sector-header">
+      <div class="sector-title">成熟製程半導體</div>
+      <span class="sector-count">3 檔</span>
+      <span class="sector-theme">車用 / IoT 回補</span>
+    </div>
+    <div class="sector-desc">車用與工業 IoT 需求回溫，聯電、旺宏、世界先進等成熟製程廠商庫存去化完畢，客戶回補力道明顯。</div>
+    <div class="stocks-grid">
+        <div class="stock-card" data-search="2303 聯電">
+          <div class="stock-header">
+            <div class="stock-name">聯電</div>
+            <span class="stock-code">2303</span>
+          </div>
+          <div class="stock-price">58.5</div>
+          <div class="stock-change">+5.30 (+9.96%)</div>
+          <div class="stock-volume">成交 1.6 億股</div>
+        </div>
+        <div class="stock-card" data-search="2337 旺宏">
+          <div class="stock-header">
+            <div class="stock-name">旺宏</div>
+            <span class="stock-code">2337</span>
+          </div>
+          <div class="stock-price">82</div>
+          <div class="stock-change">+7.45 (+9.99%)</div>
+          <div class="stock-volume">成交 34567 千股</div>
+        </div>
+        <div class="stock-card" data-search="5347 世界先進">
+          <div class="stock-header">
+            <div class="stock-name">世界先進</div>
+            <span class="stock-code">5347</span>
+          </div>
+          <div class="stock-price">135</div>
+          <div class="stock-change">+12.27 (+9.99%)</div>
+          <div class="stock-volume">成交 18234 千股</div>
+        </div>
+    </div>
+  </div>
+
+  <div class="sector uncategorized-section">
+    <div class="sector-header">
+      <div class="sector-title" style="border-color: var(--muted);">其他個股</div>
+      <span class="sector-count">1 檔</span>
+    </div>
+    <div class="uncategorized-list"><span class="uncategorized-chip">2367 燿華</span></div>
+  </div>
+
+  <!-- No results placeholder -->
+  <div class="no-results" id="no-results">
+    <div style="font-size:40px; margin-bottom:12px;">🔍</div>
+    <div>找不到符合的股票</div>
+  </div>
+
+</main>
+
+<footer>
+  資料來源：台灣證券交易所（TWSE）・AI 分析：Claude・僅供參考，不構成投資建議
+</footer>
+
+<script>
+  // ── Date Navigation ──
+  function goToDate(dateStr) {
+    if (!dateStr) return;
+    window.location.href = 'index-' + dateStr + '.html';
+  }
+
+  // ── Search / Filter ──
+  function filterStocks(query) {
+    const q = query.trim().toLowerCase();
+    const cards = document.querySelectorAll('.stock-card');
+    const sectors = document.querySelectorAll('.sector');
+    let totalVisible = 0;
+
+    cards.forEach(card => {
+      const text = card.dataset.search || '';
+      const match = !q || text.includes(q);
+      card.classList.toggle('hidden', !match);
+      if (match) totalVisible++;
+    });
+
+    // 隱藏沒有可見 card 的 sector
+    sectors.forEach(sector => {
+      const visibleCards = sector.querySelectorAll('.stock-card:not(.hidden)');
+      sector.style.display = visibleCards.length > 0 ? '' : 'none';
+    });
+
+    document.getElementById('no-results').classList.toggle('visible', totalVisible === 0 && q !== '');
+  }
+
+  // ── Keyboard shortcut: / to focus search ──
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault();
+      document.getElementById('search-input').focus();
+    }
+    if (e.key === 'Escape') {
+      const inp = document.getElementById('search-input');
+      inp.value = '';
+      filterStocks('');
+      inp.blur();
+    }
+  });
+</script>
+
+</body>
+</html>

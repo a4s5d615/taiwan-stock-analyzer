@@ -39,9 +39,9 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           if [ -n "${{ github.event.inputs.date }}" ]; then
-            python main.py --date "${{ github.event.inputs.date }}" --skip-ai
+            python main.py --date "${{ github.event.inputs.date }}"
           else
-            python main.py --skip-ai
+            python main.py
           fi
 
       - name: Commit and push generated files

@@ -90,12 +90,15 @@ def fetch_limit_up_stocks(trade_date: str) -> list[dict]:
         logger.info("TWSE 兩個端點皆無資料（可能為非交易日）")
         return []
 
+    # 印出所有回傳的 key，方便除錯
+    logger.info("TWSE 回傳的 keys：%s", list(payload.keys()))
+
     # 找出主要資料表（type=ALLBUT0999 時在 'data9' 或 'data'）
     raw_rows = payload.get("data9") or payload.get("data") or []
     fields: list[str] = payload.get("fields9") or payload.get("fields") or []
 
     if not raw_rows:
-        logger.info("當日無資料（非交易日或資料尚未更新）")
+        logger.info("當日無資料，回傳內容：%s", str(payload)[:300])
         return []
 
     # 動態找欄位索引，相容 TWSE 未來可能的欄位順序調整

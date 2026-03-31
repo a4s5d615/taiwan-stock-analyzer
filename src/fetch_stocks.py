@@ -9,10 +9,10 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# 新版 RWD API（優先嘗試）
-TWSE_URL_RWD = "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX"
-# 舊版 API（備援）
-TWSE_URL_OLD = "https://www.twse.com.tw/exchangeReport/MI_INDEX"
+# 全部上市股票每日收盤資料（含漲跌）
+TWSE_URL_RWD = "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL"
+# 備援
+TWSE_URL_OLD = "https://www.twse.com.tw/exchangeReport/STOCK_DAY_ALL"
 
 HEADERS = {
     "User-Agent": (
@@ -62,7 +62,6 @@ def fetch_limit_up_stocks(trade_date: str) -> list[dict]:
     """
     params = {
         "date": trade_date,
-        "type": "ALLBUT0999",
         "response": "json",
     }
 
@@ -90,15 +89,15 @@ def fetch_limit_up_stocks(trade_date: str) -> list[dict]:
         logger.info("TWSE 兩個端點皆無資料（可能為非交易日）")
         return []
 
-    # 印出所有回傳的 key，方便除錯
-    logger.info("TWSE 回傳的 keys：%s", list(payload.keys()))
+    # STOCK_DAY_ALL 的資料在 'data' key
+    raw_rows = payload.get("data") or []
+    fields: list[str] = payload.get("fields") or []
 
-    # 找出主要資料表（type=ALLBUT0999 時在 'data9' 或 'data'）
-    raw_rows = payload.get("data9") or payload.get("data") or []
-    fields: list[str] = payload.get("fields9") or payload.get("fields") or []
+    logger.info("欄位：%s", fields)
+    logger.info("共 %d 筆股票資料", len(raw_rows))
 
     if not raw_rows:
-        logger.info("當日無資料，回傳內容：%s", str(payload)[:300])
+        logger.info("當日無資料（非交易日或資料尚未更新）")
         return []
 
     # 動態找欄位索引，相容 TWSE 未來可能的欄位順序調整

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台股漲停分析 %%DATE_DISPLAY%%</title>
+  <style>
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #1c2128;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --accent:    #58a6ff;
+      --green:     #3fb950;
+      --red:       #f85149;
+      --tag-bg:    #1f2937;
+      --tag-text:  #93c5fd;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo span { color: var(--accent); }
+
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .date-nav button {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 5px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background .15s, border-color .15s;
+    }
+    .date-nav button:hover { background: var(--border); }
+    .date-nav button:disabled { opacity: .4; cursor: default; }
+    .date-display {
+      font-weight: 600;
+      font-size: 15px;
+      min-width: 120px;
+      text-align: center;
+    }
+
+    .search-wrap {
+      position: relative;
+    }
+    .search-wrap input {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px 5px 32px;
+      font-size: 13px;
+      width: 180px;
+      outline: none;
+      transition: border-color .15s, width .2s;
+    }
+    .search-wrap input:focus { border-color: var(--accent); width: 220px; }
+    .search-wrap::before {
+      content: "🔍";
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    /* ── Main Layout ── */
+    .container { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
+
+    /* ── Stats Bar ── */
+    .stats-bar {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .stat-item { display: flex; flex-direction: column; gap: 2px; }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { font-size: 22px; font-weight: 700; color: var(--red); }
+    .stat-value.neutral { color: var(--accent); }
+
+    .summary-text {
+      flex: 1;
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      min-width: 200px;
+    }
+
+    /* ── Sector ── */
+    .sector {
+      margin-bottom: 32px;
+      animation: fadeIn .3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+
+    .sector-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .sector-title {
+      font-size: 17px;
+      font-weight: 700;
+      border-left: 3px solid var(--accent);
+      padding-left: 10px;
+    }
+    .sector-count {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .sector-theme {
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .sector-desc {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 14px;
+      line-height: 1.7;
+      padding-left: 13px;
+      border-left: 3px solid var(--border);
+    }
+
+    /* ── Stock Grid ── */
+    .stocks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+      gap: 10px;
+    }
+
+    .stock-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color .15s, transform .1s, background .15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .stock-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--red);
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .stock-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+      background: var(--surface2);
+    }
+    .stock-card:hover::before { opacity: 1; }
+    .stock-card.hidden { display: none; }
+
+    .stock-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .stock-name { font-weight: 600; font-size: 14px; line-height: 1.3; }
+    .stock-code {
+      color: var(--muted);
+      font-size: 11px;
+      background: var(--bg);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .stock-price { font-size: 22px; font-weight: 700; color: var(--red); letter-spacing: .5px; }
+    .stock-change { font-size: 12px; color: var(--red); margin-top: 2px; }
+    .stock-volume { color: var(--muted); font-size: 11px; margin-top: 6px; }
+
+    /* ── Uncategorized ── */
+    .uncategorized-section { margin-top: 16px; }
+    .uncategorized-title {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .uncategorized-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .uncategorized-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 40px;
+      padding: 20px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* ── No Results ── */
+    .no-results {
+      display: none;
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .no-results.visible { display: block; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      header { padding: 10px 14px; }
+      .container { padding: 16px 12px; }
+      .stocks-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); }
+      .search-wrap input { width: 140px; }
+      .search-wrap input:focus { width: 160px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">台股漲停 <span>%%DATE_DISPLAY%%</span></a>
+
+  <div class="date-nav">
+    <button id="btn-prev" onclick="goToDate('%%PREV_DATE%%')" %%PREV_DISABLED%%>← 前一天</button>
+    <span class="date-display">%%DATE_DISPLAY%%</span>
+    <button id="btn-next" onclick="goToDate('%%NEXT_DATE%%')" %%NEXT_DISABLED%%>後一天 →</button>
+  </div>
+
+  <div class="search-wrap">
+    <input type="text" id="search-input" placeholder="搜尋股票代號 / 名稱" oninput="filterStocks(this.value)">
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-label">今日漲停</span>
+      <span class="stat-value">%%TOTAL_COUNT%% 檔</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">產業分類</span>
+      <span class="stat-value neutral">%%SECTOR_COUNT%% 類</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">更新時間</span>
+      <span class="stat-value neutral" style="font-size:14px; padding-top:6px;">%%UPDATE_TIME%%</span>
+    </div>
+    <div class="summary-text">%%SUMMARY%%</div>
+  </div>
+
+  <!-- Sectors (injected by Python) -->
+  %%SECTORS_HTML%%
+
+  <!-- No results placeholder -->
+  <div class="no-results" id="no-results">
+    <div style="font-size:40px; margin-bottom:12px;">🔍</div>
+    <div>找不到符合的股票</div>
+  </div>
+
+</main>
+
+<footer>
+  資料來源：台灣證券交易所（TWSE）・AI 分析：Claude・僅供參考，不構成投資建議
+</footer>
+
+<script>
+  // ── Date Navigation ──
+  function goToDate(dateStr) {
+    if (!dateStr) return;
+    window.location.href = 'index-' + dateStr + '.html';
+  }
+
+  // ── Search / Filter ──
+  function filterStocks(query) {
+    const q = query.trim().toLowerCase();
+    const cards = document.querySelectorAll('.stock-card');
+    const sectors = document.querySelectorAll('.sector');
+    let totalVisible = 0;
+
+    cards.forEach(card => {
+      const text = card.dataset.search || '';
+      const match = !q || text.includes(q);
+      card.classList.toggle('hidden', !match);
+      if (match) totalVisible++;
+    });
+
+    // 隱藏沒有可見 card 的 sector
+    sectors.forEach(sector => {
+      const visibleCards = sector.querySelectorAll('.stock-card:not(.hidden)');
+      sector.style.display = visibleCards.length > 0 ? '' : 'none';
+    });
+
+    document.getElementById('no-results').classList.toggle('visible', totalVisible === 0 && q !== '');
+  }
+
+  // ── Keyboard shortcut: / to focus search ──
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault();
+      document.getElementById('search-input').focus();
+    }
+    if (e.key === 'Escape') {
+      const inp = document.getElementById('search-input');
+      inp.value = '';
+      filterStocks('');
+      inp.blur();
+    }
+  });
+</script>
+
+</body>
+</html>

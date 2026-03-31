@@ -1,0 +1,58 @@
+name: 每日漲停分析
+
+on:
+  # 台灣時間 16:35（UTC 08:35）自動執行，確保收盤資料已更新
+  schedule:
+    - cron: "35 8 * * 1-5"   # 週一至週五
+
+  # 也可以手動觸發（在 GitHub Actions 頁面點 Run workflow）
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "指定日期 (YYYYMMDD)，留空則自動偵測最近交易日"
+        required: false
+        default: ""
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # 需要 git push 權限
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 取完整 git history，讓 git log 正確顯示
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate analysis page
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            python main.py --date "${{ github.event.inputs.date }}"
+          else
+            python main.py
+          fi
+
+      - name: Commit and push generated files
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          # 只有有新檔案時才 commit
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: update analysis $(date +'%Y%m%d')"
+            git push
+          fi
